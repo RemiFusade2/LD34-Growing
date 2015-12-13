@@ -1,5 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Security.Cryptography;
+using System.Text;
+using System.Net;
+using System.IO;
+using System;
 
 public class MainBallBehaviour : MonoBehaviour {
 
@@ -20,20 +25,37 @@ public class MainBallBehaviour : MonoBehaviour {
 	// Use this for initialization
 	void Start () 
 	{
-		ballTexture = CreateTexture (100, 100, 1.0f, 1.0f, 1.0f, 1.0f);
+		ballTexture = CreateTexture (30, 30, 1.0f, 1.0f, 1.0f, 1.0f);
 		UpdateTexture ();
+
+		gameJoltItemKey = RandomString (30);
+	}
+
+	private static System.Random random = new System.Random((int)DateTime.Now.Ticks);
+	private string RandomString(int size)
+	{
+		StringBuilder builder = new StringBuilder ();
+		char ch;
+		for (int i = 0; i < size; i++) {
+			ch = Convert.ToChar (Convert.ToInt32 (Math.Floor (26 * random.NextDouble () + 65)));
+			builder.Append (ch);
+		}
+		return builder.ToString ();
 	}
 	
 	// Update is called once per frame
 	void Update () 
 	{
-	
+		if (Input.GetKeyDown(KeyCode.S))
+		{
+			SaveOrnamentOnGameJolt("Pantoufle", "Ceci est un test");
+		}
 	}
 
 	void OnMouseDown()
 	{
 		this.GetComponent<Rigidbody> ().AddForce (mouseClickForce*Vector3.forward);
-
+		this.GetComponent<Rigidbody> ().angularVelocity = Vector3.up * 2;
 	}
 
 	void OnCollisionEnter(Collision col)
@@ -55,19 +77,34 @@ public class MainBallBehaviour : MonoBehaviour {
 			this.transform.localScale = newRadius * Vector3.one;
 			meshColliderGameObject.transform.localScale = newRadius * Vector3.one;
 
-			Ray rayToCast = new Ray(col.contacts[0].point - col.contacts[0].normal, col.contacts[0].normal );
+			float deltaTeta = Mathf.PI / 15;
+			float deltaRadius = 0.08f;
 
-			Debug.Log("TODO: raycast on a cone")
+			Vector3 upVec = this.transform.up;
+			Vector3 rightVec = Vector3.Cross(upVec, col.contacts[0].normal);
 
-			RaycastHit hit;
-			if (Physics.Raycast(rayToCast, out hit, 200.0f, layersForRayCast))
+			float timer = 0;
+			float deltaTimer = 0.001f;
+
+			for (float teta = 0 ; teta < Mathf.PI * 2 ; teta += deltaTeta)
 			{
-				Vector2 textureCoords = hit.textureCoord;
-				Color color = new Color(col.collider.GetComponent<ProjectileBehaviour> ().R, col.collider.GetComponent<ProjectileBehaviour> ().G, col.collider.GetComponent<ProjectileBehaviour> ().B);
-				AddColor(color, textureCoords);
+				float maxRadius = UnityEngine.Random.Range(0.1f, 0.5f);
+				for (float r = 0 ; r < maxRadius ; r += deltaRadius)
+				{
+					float dx = r * Mathf.Cos(teta);
+					float dy = r * Mathf.Sin(teta);
+					Vector3 origin = col.contacts[0].point - col.contacts[0].normal + dx * rightVec + dy * upVec; 
+					Ray rayToCast = new Ray(origin, col.contacts[0].normal );
+					RaycastHit hit;
+					if (Physics.Raycast(rayToCast, out hit, 2.0f, layersForRayCast))
+					{
+						Vector2 textureCoords = hit.textureCoord;
+						Color color = new Color(col.collider.GetComponent<ProjectileBehaviour> ().R, col.collider.GetComponent<ProjectileBehaviour> ().G, col.collider.GetComponent<ProjectileBehaviour> ().B);
+						StartCoroutine(WaitAndAddColor(timer, color, textureCoords));
+						timer += deltaTimer;
+					}
+				}
 			}
-
-			UpdateTexture();
 
 			col.collider.GetComponent<ProjectileBehaviour> ().AskForDestroy();
 			
@@ -76,14 +113,31 @@ public class MainBallBehaviour : MonoBehaviour {
 		}
 	}
 
+	IEnumerator WaitAndAddColor(float timer, Color color, Vector2 textureCoords)
+	{
+		yield return new WaitForSeconds (timer);
+		AddColor (color, textureCoords);
+		UpdateTexture();
+	}
+
 	public void AddColor(Color color, Vector2 textureCoords)
 	{
-		int x = Mathf.RoundToInt(textureCoords.x*ballTexture.width);
-		int y = Mathf.RoundToInt(textureCoords.y*ballTexture.height);
-		
-		Debug.Log ("Add Color at "+x + "," + y);
-		ballTexture.SetPixel(x,y, color);
-		ballTexture.Apply ();
+		try
+		{
+			int x = Mathf.RoundToInt(textureCoords.x*ballTexture.width);
+			int y = Mathf.RoundToInt(textureCoords.y*ballTexture.height);
+
+			Color lastColor = ballTexture.GetPixel(x,y);
+
+			Color newColor = new Color (color.r < lastColor.r ? color.r : lastColor.r, color.g < lastColor.g ? color.g : lastColor.g, color.b < lastColor.b ? color.b : lastColor.b);
+
+			ballTexture.SetPixel(x,y, newColor);
+			ballTexture.Apply ();
+		}
+		catch(UnityException ex)
+		{
+			Debug.Log(ex.ToString());
+		}
 	}
 
 	public void UpdateTexture()
@@ -103,5 +157,93 @@ public class MainBallBehaviour : MonoBehaviour {
 		}
 		resTexture.Apply ();
 		return resTexture;
+	}
+
+	private string gameJoltItemKey;
+	private const string gameJoltGameID = "113437";
+
+	public void SaveOrnamentOnGameJolt(string username, string message)
+	{
+		string gameJoltURL = "http://gamejolt.com/api/game/v1/data-store/set/";
+
+		string gameJoltUsernameURL = gameJoltURL;
+		string usernameKey = gameJoltItemKey + "USERNAME";
+		gameJoltUsernameURL += "?game_id=" + gameJoltGameID;
+		gameJoltUsernameURL += "&key=" + usernameKey;
+		gameJoltUsernameURL += "&data=" + WWW.EscapeURL(username);
+
+		string signature = GenerateSignature (gameJoltUsernameURL);
+		gameJoltUsernameURL += "&signature=" + signature;
+
+		Debug.Log (gameJoltUsernameURL);
+
+		WWW www1 = new WWW(gameJoltUsernameURL);
+		StartCoroutine(WaitForRequest(www1));
+
+
+		string gameJoltMessageURL = gameJoltURL;
+		string messageKey = gameJoltItemKey + "MESSAGE";
+		gameJoltMessageURL += "?game_id=" + gameJoltGameID;
+		gameJoltMessageURL += "&key=" + messageKey;
+		gameJoltMessageURL += "&data=" + WWW.EscapeURL(message);
+
+		signature = GenerateSignature (gameJoltMessageURL);
+		gameJoltMessageURL += "&signature=" + signature;
+		
+		Debug.Log (gameJoltMessageURL);
+
+		WWW www2 = new WWW(gameJoltMessageURL);
+		StartCoroutine(WaitForRequest(www2));
+
+		
+		string gameJoltTextureURL = gameJoltURL;
+		string textureKey = gameJoltItemKey + "TEXTURE";
+		gameJoltTextureURL += "?game_id=" + gameJoltGameID;
+		gameJoltTextureURL += "&key=" + textureKey;
+		gameJoltTextureURL += "&data=";
+
+		for (int x = 0 ; x < ballTexture.width ; x++)
+		{
+			for (int y = 0 ; y < ballTexture.height ; y++)
+			{
+				Color currentColor = ballTexture.GetPixel(x,y);
+				gameJoltTextureURL += currentColor.r + "," + currentColor.g + "," + currentColor.b + "-";
+			}
+		}
+		
+		signature = GenerateSignature (gameJoltTextureURL);
+		gameJoltTextureURL += "&signature=" + signature;
+		
+		Debug.Log (gameJoltTextureURL);
+		
+		WWW www3 = new WWW(gameJoltTextureURL);
+		StartCoroutine(WaitForRequest(www3));
+	}
+
+	IEnumerator WaitForRequest(WWW www)
+	{
+		yield return www;
+		// check for errors
+		if (www.error == null)
+		{
+			Debug.Log("WWW Ok!: " + www.text);
+		} else {
+			Debug.Log("WWW Error: "+ www.error);
+		}    
+	}
+	
+	private const string gameJoltPrivateKey = "b6eaefd31f816bfa77e1da14791d7dcb";
+	private string GenerateSignature(string input)
+	{
+		MD5 md5 = System.Security.Cryptography.MD5.Create ();
+		byte[] inputBytes = System.Text.Encoding.ASCII.GetBytes (input + gameJoltPrivateKey);
+		byte[] hash = md5.ComputeHash (inputBytes);
+		StringBuilder sb = new StringBuilder ();
+		for (int i = 0; i < hash.Length ; i++)
+		{
+			sb.Append(hash[i].ToString("X2"));
+		}
+		string signature = sb.ToString().ToLower();
+		return signature;
 	}
 }
