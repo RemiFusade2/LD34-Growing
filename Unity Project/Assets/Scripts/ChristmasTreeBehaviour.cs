@@ -210,10 +210,13 @@ public class ChristmasTreeBehaviour : MonoBehaviour {
 			foreach (string keyName in dataDico.Keys)
 			{
 				Dictionary<string,string> contentDico = dataDico[keyName];
-				GameObject instance = (GameObject) Instantiate (ornamentSpherePrefab, Vector3.zero, Quaternion.identity);
-				instance.transform.parent = this.transform;
-				instance.GetComponent<OrnamentSphereBehaviour>().InitializeFromStrings(contentDico["USERNAME"], contentDico["MESSAGE"], contentDico["TEXTURE"], contentDico["POSITION"], contentDico["SCALE"]);
-				instance.GetComponent<OrnamentSphereBehaviour>().text3D = text3D;			
+				if (contentDico.Keys.Count == 5)
+				{
+					GameObject instance = (GameObject) Instantiate (ornamentSpherePrefab, Vector3.zero, Quaternion.identity);
+					instance.transform.parent = this.transform;
+					instance.GetComponent<OrnamentSphereBehaviour>().InitializeFromStrings(contentDico["USERNAME"], contentDico["MESSAGE"], contentDico["TEXTURE"], contentDico["POSITION"], contentDico["SCALE"]);
+					instance.GetComponent<OrnamentSphereBehaviour>().text3D = text3D;	
+				}		
 			}
 		}
 	}

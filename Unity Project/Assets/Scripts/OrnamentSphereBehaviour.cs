@@ -42,6 +42,27 @@ public class OrnamentSphereBehaviour : MonoBehaviour {
 		authorName = name;
 		authorMessage = message;
 
+		if (authorMessage.Length > 25)
+		{
+			string[] words = authorMessage.Split (' ');
+			authorMessage = "";
+			int count = 0;
+			foreach (string word in words)
+			{
+				authorMessage += word;
+				count += word.Length+1;
+				if (count >= 25)
+				{
+					authorMessage += "\n";
+					count = 0;
+				}
+				else
+				{
+					authorMessage += " ";
+				}
+			}
+		}
+
 		myTexture = new Texture2D (30, 30);
 		string[] textureCoordinatesStrArray = texture.Split (';');
 		int x = 0;

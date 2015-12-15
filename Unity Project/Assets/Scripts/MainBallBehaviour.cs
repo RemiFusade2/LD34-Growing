@@ -163,8 +163,8 @@ public class MainBallBehaviour : MonoBehaviour {
 
 	public GameObject decorationPanelUI;
 
-	public Text usernameTextInput;
-	public Text messageTextInput;
+	public InputField usernameTextInput;
+	public InputField messageTextInput;
 
 	public void SaveOrnamentOnGameJolt()
 	{
@@ -175,8 +175,12 @@ public class MainBallBehaviour : MonoBehaviour {
 		SaveOrnamentOnGameJolt (usernameTextInput.text, messageTextInput.text);
 	}
 
+	private int savingRequestCount;
+
 	public void SaveOrnamentOnGameJolt(string username, string message)
 	{
+		savingRequestCount = 5;
+
 		string gameJoltURL = "http://gamejolt.com/api/game/v1/data-store/set/";
 
 		string gameJoltUsernameURL = gameJoltURL;
@@ -272,8 +276,12 @@ public class MainBallBehaviour : MonoBehaviour {
 		if (www.error == null)
 		{
 			Debug.Log("WWW Ok!: " + www.text);
-			thankYouPanel.SetActive(true);
-			StartCoroutine(WaitAndCloseApplication(2.0f));
+			savingRequestCount--;
+			if (savingRequestCount <= 0)
+			{
+				thankYouPanel.SetActive(true);
+				StartCoroutine(WaitAndCloseApplication(2.0f));
+			}
 		} else {
 			Debug.Log("WWW Error: "+ www.error);
 		}
