@@ -5,6 +5,7 @@ using System.Text;
 using System.Net;
 using System.IO;
 using System;
+using UnityEngine.UI;
 
 public class MainBallBehaviour : MonoBehaviour {
 
@@ -21,6 +22,8 @@ public class MainBallBehaviour : MonoBehaviour {
 	public LayerMask layersForRayCast;
 
 	public GameObject meshColliderGameObject;
+
+	public GameObject currentOrnament;
 
 	// Use this for initialization
 	void Start () 
@@ -46,10 +49,6 @@ public class MainBallBehaviour : MonoBehaviour {
 	// Update is called once per frame
 	void Update () 
 	{
-		if (Input.GetKeyDown(KeyCode.S))
-		{
-			SaveOrnamentOnGameJolt("Pantoufle", "Ceci est un test");
-		}
 	}
 
 	void OnMouseDown()
@@ -162,12 +161,26 @@ public class MainBallBehaviour : MonoBehaviour {
 	private string gameJoltItemKey;
 	private const string gameJoltGameID = "113437";
 
+	public GameObject decorationPanelUI;
+
+	public Text usernameTextInput;
+	public Text messageTextInput;
+
+	public void SaveOrnamentOnGameJolt()
+	{
+		decorationPanelUI.SetActive (false);
+
+		currentOrnament.GetComponent<OrnamentSphereBehaviour> ().SetAuthorAndMessage (usernameTextInput.text, messageTextInput.text);
+
+		SaveOrnamentOnGameJolt (usernameTextInput.text, messageTextInput.text);
+	}
+
 	public void SaveOrnamentOnGameJolt(string username, string message)
 	{
 		string gameJoltURL = "http://gamejolt.com/api/game/v1/data-store/set/";
 
 		string gameJoltUsernameURL = gameJoltURL;
-		string usernameKey = gameJoltItemKey + "USERNAME";
+		string usernameKey = gameJoltItemKey + "-USERNAME";
 		gameJoltUsernameURL += "?game_id=" + gameJoltGameID;
 		gameJoltUsernameURL += "&key=" + usernameKey;
 		gameJoltUsernameURL += "&data=" + WWW.EscapeURL(username);
@@ -182,7 +195,7 @@ public class MainBallBehaviour : MonoBehaviour {
 
 
 		string gameJoltMessageURL = gameJoltURL;
-		string messageKey = gameJoltItemKey + "MESSAGE";
+		string messageKey = gameJoltItemKey + "-MESSAGE";
 		gameJoltMessageURL += "?game_id=" + gameJoltGameID;
 		gameJoltMessageURL += "&key=" + messageKey;
 		gameJoltMessageURL += "&data=" + WWW.EscapeURL(message);
@@ -197,7 +210,7 @@ public class MainBallBehaviour : MonoBehaviour {
 
 		
 		string gameJoltTextureURL = gameJoltURL;
-		string textureKey = gameJoltItemKey + "TEXTURE";
+		string textureKey = gameJoltItemKey + "-TEXTURE";
 		gameJoltTextureURL += "?game_id=" + gameJoltGameID;
 		gameJoltTextureURL += "&key=" + textureKey;
 		gameJoltTextureURL += "&data=";
@@ -207,7 +220,7 @@ public class MainBallBehaviour : MonoBehaviour {
 			for (int y = 0 ; y < ballTexture.height ; y++)
 			{
 				Color currentColor = ballTexture.GetPixel(x,y);
-				gameJoltTextureURL += currentColor.r + "," + currentColor.g + "," + currentColor.b + "-";
+				gameJoltTextureURL += currentColor.r + "," + currentColor.g + "," + currentColor.b + ";";
 			}
 		}
 		
@@ -218,7 +231,39 @@ public class MainBallBehaviour : MonoBehaviour {
 		
 		WWW www3 = new WWW(gameJoltTextureURL);
 		StartCoroutine(WaitForRequest(www3));
+
+
+		string gameJoltPositionURL = gameJoltURL;
+		string positionKey = gameJoltItemKey + "-POSITION";
+		gameJoltPositionURL += "?game_id=" + gameJoltGameID;
+		gameJoltPositionURL += "&key=" + positionKey;
+		gameJoltPositionURL += "&data=" + WWW.EscapeURL(currentOrnament.transform.position.x+";"+currentOrnament.transform.position.y+";"+currentOrnament.transform.position.z);
+		
+		signature = GenerateSignature (gameJoltPositionURL);
+		gameJoltPositionURL += "&signature=" + signature;
+		
+		Debug.Log (gameJoltPositionURL);
+		
+		WWW www4 = new WWW(gameJoltPositionURL);
+		StartCoroutine(WaitForRequest(www4));
+
+		
+		string gameJoltScaleURL = gameJoltURL;
+		string scaleKey = gameJoltItemKey + "-SCALE";
+		gameJoltScaleURL += "?game_id=" + gameJoltGameID;
+		gameJoltScaleURL += "&key=" + scaleKey;
+		gameJoltScaleURL += "&data=" + WWW.EscapeURL(this.transform.localScale.x.ToString());
+		
+		signature = GenerateSignature (gameJoltScaleURL);
+		gameJoltScaleURL += "&signature=" + signature;
+		
+		Debug.Log (gameJoltScaleURL);
+		
+		WWW www5 = new WWW(gameJoltScaleURL);
+		StartCoroutine(WaitForRequest(www5));
 	}
+
+	public GameObject thankYouPanel;
 
 	IEnumerator WaitForRequest(WWW www)
 	{
@@ -227,9 +272,17 @@ public class MainBallBehaviour : MonoBehaviour {
 		if (www.error == null)
 		{
 			Debug.Log("WWW Ok!: " + www.text);
+			thankYouPanel.SetActive(true);
+			StartCoroutine(WaitAndCloseApplication(2.0f));
 		} else {
 			Debug.Log("WWW Error: "+ www.error);
-		}    
+		}
+	}
+
+	IEnumerator WaitAndCloseApplication(float timer)
+	{
+		yield return new WaitForSeconds (timer);
+		Application.Quit ();
 	}
 	
 	private const string gameJoltPrivateKey = "b6eaefd31f816bfa77e1da14791d7dcb";

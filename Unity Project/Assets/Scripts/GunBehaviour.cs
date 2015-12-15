@@ -15,6 +15,8 @@ public class GunBehaviour : MonoBehaviour {
 	void Start () {
 	
 	}
+
+	public Animator projectileColorAnimator;
 	
 	// Update is called once per frame
 	void Update () 
@@ -29,16 +31,19 @@ public class GunBehaviour : MonoBehaviour {
 			{
 				red = 1;
 				green = 0;
+				projectileColorAnimator.SetInteger("color", 2);
 			}
 			else if (green < 0.1f)
 			{
 				green = 1;
 				blue = 0;
+				projectileColorAnimator.SetInteger("color", 0);
 			}
 			else
 			{
 				blue = 1;
 				red = 0;
+				projectileColorAnimator.SetInteger("color", 1);
 			}
 		}
 	}
